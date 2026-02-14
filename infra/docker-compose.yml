@@ -1,30 +1,16 @@
-# infra/docker-compose.yml
 services:
-  postgres_db:
-    image: postgres:17
-    container_name: postgres_db
-    environment:
-      POSTGRES_USER: devops
-      POSTGRES_PASSWORD: devops
-      POSTGRES_DB: devops
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    networks:
-      - app-network
-
   backend_app:
     build:
       context: ../BE
     container_name: backend_app
     environment:
-      DB_HOST: postgres_db
-      DB_USER: devops
-      DB_PASSWORD: devops
-      DB_NAME: devops
+      DB_HOST: devops-db.cjuuoys4a3cz.us-west-2.rds.amazonaws.com
+      DB_USER: devops-db
+      DB_PASS: devops-db
+      DB_NAME: devops-db
+      DB_PORT: 5432
     ports:
       - "5001:5001"
-    depends_on:
-      - postgres_db
     networks:
       - app-network
 
@@ -38,10 +24,6 @@ services:
       - backend_app
     networks:
       - app-network
-
-volumes:
-  pgdata:
-
 
 networks:
   app-network:
