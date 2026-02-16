@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { getPhotos, generateUploadURL, savePhoto } from './api';
+import {
+  getPhotos,
+  generateUploadURL,
+  savePhoto,
+  uploadToS3
+} from './api';
 
 function App() {
   const [photos, setPhotos] = useState([]);
   const [file, setFile] = useState(null);
 
-  // Fetch all photos on page load
   useEffect(() => {
     fetchPhotos();
   }, []);
@@ -27,24 +31,30 @@ function App() {
     if (!file) return alert("Select a file first");
 
     try {
-      // Step 1: Get upload URL from backend
-      const { data } = await generateUploadURL(file.name);
+      // STEP 1 — ask backend for upload permission
+      const { data } = await generateUploadURL(
+        file.name,
+        file.type
+      );
 
-      // Step 2: Upload file to the URL (S3 / local backend)
-      await fetch(data.url, {
-        method: 'PUT',
-        body: file,
-        headers: {
-          'Content-Type': file.type
-        }
+      const uploadURL = data.uploadURL;
+
+      // STEP 2 — upload directly to S3
+      await uploadToS3(uploadURL, file);
+
+      // STEP 3 — generate public file URL
+      const fileURL =
+        `https://${process.env.REACT_APP_BUCKET}.s3.${process.env.REACT_APP_REGION}.amazonaws.com/${encodeURIComponent(file.name)}`;
+
+      // STEP 4 — save metadata in DB
+      await savePhoto({
+        filename: file.name,
+        url: fileURL
       });
 
-      // Step 3: Save photo metadata to backend
-      await savePhoto({ filename: file.name, url: data.url });
-      alert("Uploaded successfully!");
-
-      // Refresh photo list
+      alert("Upload successful!");
       fetchPhotos();
+
     } catch (err) {
       console.error("Upload failed:", err);
     }
@@ -52,20 +62,36 @@ function App() {
 
   return (
     <div style={{ padding: 20 }}>
-      <h1>Photo Uploader</h1>
+      <h1>📸 Photo Uploader</h1>
 
       <input type="file" onChange={handleFileChange} />
-      <button onClick={handleUpload} style={{ marginLeft: 10 }}>Upload</button>
+      <button
+        onClick={handleUpload}
+        style={{ marginLeft: 10 }}
+      >
+        Upload
+      </button>
 
       <h2>Photos</h2>
+
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+        gridTemplateColumns:
+          'repeat(auto-fit, minmax(150px, 1fr))',
         gap: 10
       }}>
         {photos.map(photo => (
-          <div key={photo.id} style={{ border: '1px solid #ccc', padding: 5 }}>
-            <img src={photo.url} alt={photo.filename} style={{ width: '100%' }} />
+          <div key={photo.id}
+            style={{
+              border: '1px solid #ccc',
+              padding: 5
+            }}
+          >
+            <img
+              src={photo.url}
+              alt={photo.filename}
+              style={{ width: '100%' }}
+            />
             <p>{photo.filename}</p>
           </div>
         ))}

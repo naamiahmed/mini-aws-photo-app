@@ -37,10 +37,13 @@ app.put(
 app.use("/uploads", express.static("uploads"));
 
 app.use("/api", photoRoutes);
+app.use("/api", require("./routes/upload"));
 
-sequelize.sync().then(() => {
-  console.log("Database connected");
-  app.listen(process.env.PORT, () => {
-    console.log(`Server running on port ${process.env.PORT}`);
-  });
+
+// sequelize.sync().then(() => {
+//   console.log("Database connected");
+const PORT = process.env.PORT || 5001;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
+// });
